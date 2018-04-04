@@ -24,210 +24,180 @@
     #import <UserNotifications/UNUserNotificationCenter.h>
 #endif
 
-@interface MPKitRegister (Branch)
-// Declare this dummy init method so that this interface works with older versions of mParticle.
-- (instancetype) initWithName:(NSString*)name
-                    className:(NSString*)className
-             startImmediately:(BOOL)startImmediately;
-@end
-
 NSString *const ekBMAppKey = @"branchKey";
 NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 
-@interface MPKitBranchMetrics()
-@property (strong) Branch *branchInstance;
-@property (assign) BOOL forwardScreenViews;
-@property (strong) NSDictionary *temporaryParams;
-@property (strong) NSError *temporaryError;
-@property (copy) void (^completionHandlerCopy)(NSDictionary *, NSError *);
+@interface MPKitBranchMetrics() {
+    Branch *branchInstance;
+    BOOL forwardScreenViews;
+}
+
 @end
 
-#pragma mark - MPKitBranchMetrics
-
 @implementation MPKitBranchMetrics
+
+@synthesize kitApi = _kitApi;
 
 + (NSNumber *)kitCode {
     return @80;
 }
 
 + (void)load {
-    MPKitRegister *kitRegister = [MPKitRegister alloc];
-    if ([kitRegister respondsToSelector:@selector(initWithName:className:startImmediately:)]) {
-        kitRegister = [kitRegister initWithName:@"BranchMetrics"
-            className:@"MPKitBranchMetrics" startImmediately:NO];
-    } else {
-        kitRegister = [kitRegister initWithName:@"BranchMetrics" className:@"MPKitBranchMetrics"];
-    }
+    MPKitRegister *kitRegister = [[MPKitRegister alloc] initWithName:@"BranchMetrics" className:@"MPKitBranchMetrics"];
     [MParticle registerExtension:kitRegister];
 }
 
-#pragma mark - MPKitInstanceProtocol Methods
+#pragma mark MPKitInstanceProtocol methods
+- (MPKitExecStatus *)didFinishLaunchingWithConfiguration:(NSDictionary *)configuration {
+    MPKitExecStatus *execStatus = nil;
 
-- (instancetype)initWithConfiguration:(NSDictionary *)configuration
-                     startImmediately:(BOOL)startImmediately {
-    self = [super init];
     NSString *branchKey = configuration[ekBMAppKey];
-    if (!self || !branchKey) {
-        return nil;
+    if (!branchKey) {
+        execStatus = [[MPKitExecStatus alloc] initWithSDKCode:[[self class] kitCode] returnCode:MPKitReturnCodeRequirementsNotMet];
+        return execStatus;
     }
 
-    self.branchInstance = nil;
-    self.forwardScreenViews = [configuration[ekBMAForwardScreenViews] boolValue];
-    self.configuration = configuration;
-    self.temporaryParams = nil;
-    self.temporaryError = nil;
+    branchInstance = nil;
+    forwardScreenViews = [configuration[ekBMAForwardScreenViews] boolValue];
+    _configuration = configuration;
+    _started = NO;
 
-    if (startImmediately) {
-        [self start];
-    }
-
-    return self;
+    execStatus = [[MPKitExecStatus alloc] initWithSDKCode:[[self class] kitCode] returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
 - (id const)providerKitInstance {
-    return [self started] ? self.branchInstance : nil;
+    return [self started] ? branchInstance : nil;
 }
 
 - (void)start {
-    static dispatch_once_t branchMetricsPredicate = 0;
+    static dispatch_once_t branchMetricsPredicate;
+
     dispatch_once(&branchMetricsPredicate, ^{
         NSString *branchKey = [self.configuration[ekBMAppKey] copy];
-        self.branchInstance = [Branch getInstance:branchKey];
+        branchInstance = [Branch getInstance:branchKey];
 
-        [self.branchInstance initSessionWithLaunchOptions:self.launchOptions
-            isReferrable:YES
-            andRegisterDeepLinkHandler:^(NSDictionary *params, NSError *error) {
-            self.temporaryParams = [params copy];
-            self.temporaryError = [error copy];
-
-            if (self.completionHandlerCopy) {
-                self.completionHandlerCopy(params, error);
-                self.temporaryParams = nil;
-                self.temporaryError = nil;
+        [branchInstance initSessionWithLaunchOptions:self.launchOptions isReferrable:YES andRegisterDeepLinkHandler:^(NSDictionary *params, NSError *error) {
+            if (error) {
+                [_kitApi onAttributionCompleteWithResult:nil error:error];
+                return;
             }
+            
+            MPAttributionResult *attributionResult = [[MPAttributionResult alloc] init];
+            attributionResult.linkInfo = params;
+
+            [_kitApi onAttributionCompleteWithResult:attributionResult error:nil];
         }];
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (self.branchInstance) {
-                self->_started = YES;
+            if (branchInstance) {
+                _started = YES;
             }
 
             NSMutableDictionary *userInfo = [@{mParticleKitInstanceKey:[[self class] kitCode],
                                                @"branchKey":branchKey} mutableCopy];
 
-            if (self.temporaryParams && self.temporaryParams.count > 0) {
-                userInfo[@"params"] = self.temporaryParams;
-            }
-
-            if (self.temporaryError) {
-                userInfo[@"error"] = self.temporaryError;
-            }
-
-            [[NSNotificationCenter defaultCenter]
-                postNotificationName:mParticleKitDidBecomeActiveNotification
-                object:nil
-                userInfo:userInfo];
+            [[NSNotificationCenter defaultCenter] postNotificationName:mParticleKitDidBecomeActiveNotification
+                                                                object:nil
+                                                              userInfo:userInfo];
         });
     });
 }
 
-- (MPKitExecStatus*_Nonnull) execStatus:(MPKitReturnCode)returnCode {
-    return [[MPKitExecStatus alloc]
-        initWithSDKCode:@(MPKitInstanceBranchMetrics)
-        returnCode:returnCode];
-}
+- (nonnull MPKitExecStatus *)continueUserActivity:(nonnull NSUserActivity *)userActivity restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler {
+    [branchInstance continueUserActivity:userActivity];
 
-- (nonnull MPKitExecStatus *)continueUserActivity:(nonnull NSUserActivity *)userActivity
-restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler {
-    [self.branchInstance continueUserActivity:userActivity];
-    return [self execStatus:MPKitReturnCodeSuccess];
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
 - (MPKitExecStatus *)logout {
-    [self.branchInstance logout];
-    return [self execStatus:MPKitReturnCodeSuccess];
+    [branchInstance logout];
+
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
 - (MPKitExecStatus *)logEvent:(MPEvent *)event {
     if (event.info.count > 0) {
-        [self.branchInstance userCompletedAction:event.name withState:event.info];
+        [branchInstance userCompletedAction:event.name withState:event.info];
     } else {
-        [self.branchInstance userCompletedAction:event.name];
+        [branchInstance userCompletedAction:event.name];
     }
-    return [self execStatus:MPKitReturnCodeSuccess];
+
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
 - (MPKitExecStatus *)logScreen:(MPEvent *)event {
-    if (!self.forwardScreenViews) {
-        return [self execStatus:MPKitReturnCodeUnavailable];
+    MPKitExecStatus *execStatus;
+
+    if (!forwardScreenViews) {
+        execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeUnavailable];
+        return execStatus;
     }
+
     NSString *actionName = [NSString stringWithFormat:@"Viewed %@", event.name];
+
     if (event.info.count > 0) {
-        [self.branchInstance userCompletedAction:actionName withState:event.info];
+        [branchInstance userCompletedAction:actionName withState:event.info];
     } else {
-        [self.branchInstance userCompletedAction:actionName];
+        [branchInstance userCompletedAction:actionName];
     }
-    return [self execStatus:MPKitReturnCodeSuccess];
+
+    execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
-- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url
-                             options:(nullable NSDictionary<NSString *, id> *)options {
-    [self.branchInstance handleDeepLink:url];
-    return [self execStatus:MPKitReturnCodeSuccess];
+- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url options:(nullable NSDictionary<NSString *, id> *)options {
+    [branchInstance handleDeepLink:url];
+
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
-- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url
-                   sourceApplication:(nullable NSString *)sourceApplication
-                          annotation:(nullable id)annotation {
-    [self.branchInstance handleDeepLink:url];
-    return [self execStatus:MPKitReturnCodeSuccess];
+- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url sourceApplication:(nullable NSString *)sourceApplication annotation:(nullable id)annotation {
+    [branchInstance handleDeepLink:url];
+
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
 - (MPKitExecStatus *)receivedUserNotification:(NSDictionary *)userInfo {
-    [self.branchInstance handlePushNotification:userInfo];
-    return [self execStatus:MPKitReturnCodeSuccess];
+    [branchInstance handlePushNotification:userInfo];
+
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
 #if TARGET_OS_IOS == 1 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-- (nonnull MPKitExecStatus *)userNotificationCenter:(nonnull UNUserNotificationCenter *)center
-                            willPresentNotification:(nonnull UNNotification *)notification {
-    [self.branchInstance handlePushNotification:notification.request.content.userInfo];
-    return [self execStatus:MPKitReturnCodeSuccess];
+- (nonnull MPKitExecStatus *)userNotificationCenter:(nonnull UNUserNotificationCenter *)center willPresentNotification:(nonnull UNNotification *)notification {
+    [branchInstance handlePushNotification:notification.request.content.userInfo];
+
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
-- (nonnull MPKitExecStatus *)userNotificationCenter:(nonnull UNUserNotificationCenter *)center
-                     didReceiveNotificationResponse:(nonnull UNNotificationResponse *)response {
-    [self.branchInstance handlePushNotification:response.notification.request.content.userInfo];
-    return [self execStatus:MPKitReturnCodeSuccess];
+- (nonnull MPKitExecStatus *)userNotificationCenter:(nonnull UNUserNotificationCenter *)center didReceiveNotificationResponse:(nonnull UNNotificationResponse *)response {
+    [branchInstance handlePushNotification:response.notification.request.content.userInfo];
+
+    MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 #endif
 
-- (MPKitExecStatus *)setUserIdentity:(NSString *)identityString
-                        identityType:(MPUserIdentity)identityType {
+- (MPKitExecStatus *)setUserIdentity:(NSString *)identityString identityType:(MPUserIdentity)identityType {
+    MPKitExecStatus *execStatus;
 
     if (identityType != MPUserIdentityCustomerId || identityString.length == 0) {
-        return [self execStatus:MPKitReturnCodeRequirementsNotMet];
+        execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeRequirementsNotMet];
+        return execStatus;
     }
 
-    [self.branchInstance setIdentity:identityString];
-    return [self execStatus:MPKitReturnCodeSuccess];
-}
+    [branchInstance setIdentity:identityString];
 
-- (nonnull MPKitExecStatus *)didFinishLaunchingWithConfiguration:(nonnull NSDictionary *)configuration {
-    _started = YES;
-    return [self execStatus:MPKitReturnCodeSuccess];
-}
-
-- (MPKitExecStatus *)checkForDeferredDeepLinkWithCompletionHandler:
-        (void(^)(NSDictionary *linkInfo, NSError *error))completionHandler {
-    if (_started && (self.temporaryParams || self.temporaryError)) {
-        completionHandler(self.temporaryParams, self.temporaryError);
-        self.temporaryParams = nil;
-        self.temporaryError = nil;
-    } else {
-        self.completionHandlerCopy = [completionHandler copy];
-    }
-    return [self execStatus:MPKitReturnCodeSuccess];
+    execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
+    return execStatus;
 }
 
 @end
