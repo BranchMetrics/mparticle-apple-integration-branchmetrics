@@ -27,11 +27,9 @@
 NSString *const ekBMAppKey = @"branchKey";
 NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 
-@interface MPKitBranchMetrics() {
-    Branch *branchInstance;
-    BOOL forwardScreenViews;
-}
-
+@interface MPKitBranchMetrics()
+@property (strong) Branch *branchInstance;
+@property (assign) BOOL forwardScreenViews;
 @end
 
 @implementation MPKitBranchMetrics
@@ -57,8 +55,8 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         return execStatus;
     }
 
-    branchInstance = nil;
-    forwardScreenViews = [configuration[ekBMAForwardScreenViews] boolValue];
+    self.branchInstance = nil;
+    self.forwardScreenViews = [configuration[ekBMAForwardScreenViews] boolValue];
     _configuration = configuration;
     _started = NO;
 
@@ -67,62 +65,64 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 }
 
 - (id const)providerKitInstance {
-    return [self started] ? branchInstance : nil;
+    return [self started] ? self.branchInstance : nil;
 }
 
 - (void)start {
-    static dispatch_once_t branchMetricsPredicate;
-
+    static dispatch_once_t branchMetricsPredicate = 0;
     dispatch_once(&branchMetricsPredicate, ^{
         NSString *branchKey = [self.configuration[ekBMAppKey] copy];
-        branchInstance = [Branch getInstance:branchKey];
-
-        [branchInstance initSessionWithLaunchOptions:self.launchOptions isReferrable:YES andRegisterDeepLinkHandler:^(NSDictionary *params, NSError *error) {
+        self.branchInstance = [Branch getInstance:branchKey];
+        [self.branchInstance initSessionWithLaunchOptions:self.launchOptions
+            isReferrable:YES
+            andRegisterDeepLinkHandler:^(NSDictionary *params, NSError *error) {
             if (error) {
-                [_kitApi onAttributionCompleteWithResult:nil error:error];
+                [self->_kitApi onAttributionCompleteWithResult:nil error:error];
                 return;
             }
             
             MPAttributionResult *attributionResult = [[MPAttributionResult alloc] init];
             attributionResult.linkInfo = params;
 
-            [_kitApi onAttributionCompleteWithResult:attributionResult error:nil];
+            [self->_kitApi onAttributionCompleteWithResult:attributionResult error:nil];
         }];
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (branchInstance) {
-                _started = YES;
+            if (self.branchInstance) {
+                self->_started = YES;
             }
 
-            NSMutableDictionary *userInfo = [@{mParticleKitInstanceKey:[[self class] kitCode],
-                                               @"branchKey":branchKey} mutableCopy];
+            NSMutableDictionary *userInfo = [@{
+                mParticleKitInstanceKey: [[self class] kitCode],
+                @"branchKey": branchKey
+            } mutableCopy];
 
-            [[NSNotificationCenter defaultCenter] postNotificationName:mParticleKitDidBecomeActiveNotification
-                                                                object:nil
-                                                              userInfo:userInfo];
+            [[NSNotificationCenter defaultCenter]
+                postNotificationName:mParticleKitDidBecomeActiveNotification
+                object:nil
+                userInfo:userInfo];
         });
     });
 }
 
 - (nonnull MPKitExecStatus *)continueUserActivity:(nonnull NSUserActivity *)userActivity restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler {
-    [branchInstance continueUserActivity:userActivity];
+    [self.branchInstance continueUserActivity:userActivity];
 
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
 }
 
 - (MPKitExecStatus *)logout {
-    [branchInstance logout];
-
+    [self.branchInstance logout];
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
 }
 
 - (MPKitExecStatus *)logEvent:(MPEvent *)event {
     if (event.info.count > 0) {
-        [branchInstance userCompletedAction:event.name withState:event.info];
+        [self.branchInstance userCompletedAction:event.name withState:event.info];
     } else {
-        [branchInstance userCompletedAction:event.name];
+        [self.branchInstance userCompletedAction:event.name];
     }
 
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
@@ -132,7 +132,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 - (MPKitExecStatus *)logScreen:(MPEvent *)event {
     MPKitExecStatus *execStatus;
 
-    if (!forwardScreenViews) {
+    if (!self.forwardScreenViews) {
         execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeUnavailable];
         return execStatus;
     }
@@ -140,9 +140,9 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     NSString *actionName = [NSString stringWithFormat:@"Viewed %@", event.name];
 
     if (event.info.count > 0) {
-        [branchInstance userCompletedAction:actionName withState:event.info];
+        [self.branchInstance userCompletedAction:actionName withState:event.info];
     } else {
-        [branchInstance userCompletedAction:actionName];
+        [self.branchInstance userCompletedAction:actionName];
     }
 
     execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
@@ -150,21 +150,21 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 }
 
 - (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url options:(nullable NSDictionary<NSString *, id> *)options {
-    [branchInstance handleDeepLink:url];
+    [self.branchInstance handleDeepLink:url];
 
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
 }
 
 - (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url sourceApplication:(nullable NSString *)sourceApplication annotation:(nullable id)annotation {
-    [branchInstance handleDeepLink:url];
+    [self.branchInstance handleDeepLink:url];
 
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
 }
 
 - (MPKitExecStatus *)receivedUserNotification:(NSDictionary *)userInfo {
-    [branchInstance handlePushNotification:userInfo];
+    [self.branchInstance handlePushNotification:userInfo];
 
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
@@ -172,14 +172,14 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 
 #if TARGET_OS_IOS == 1 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 - (nonnull MPKitExecStatus *)userNotificationCenter:(nonnull UNUserNotificationCenter *)center willPresentNotification:(nonnull UNNotification *)notification {
-    [branchInstance handlePushNotification:notification.request.content.userInfo];
+    [self.branchInstance handlePushNotification:notification.request.content.userInfo];
 
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
 }
 
 - (nonnull MPKitExecStatus *)userNotificationCenter:(nonnull UNUserNotificationCenter *)center didReceiveNotificationResponse:(nonnull UNNotificationResponse *)response {
-    [branchInstance handlePushNotification:response.notification.request.content.userInfo];
+    [self.branchInstance handlePushNotification:response.notification.request.content.userInfo];
 
     MPKitExecStatus *execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
@@ -194,7 +194,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         return execStatus;
     }
 
-    [branchInstance setIdentity:identityString];
+    [self.branchInstance setIdentity:identityString];
 
     execStatus = [[MPKitExecStatus alloc] initWithSDKCode:@(MPKitInstanceBranchMetrics) returnCode:MPKitReturnCodeSuccess];
     return execStatus;
