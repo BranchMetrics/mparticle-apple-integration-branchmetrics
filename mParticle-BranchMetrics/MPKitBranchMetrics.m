@@ -19,6 +19,15 @@
 #import "MPKitBranchMetrics.h"
 #import <Branch/Branch.h>
 
+@interface MPEvent (Branch)
+- (MPMessageType) messageType;
+@end
+
+__attribute__((constructor))
+void MPKitBranchMetricsLoadClass(void) {
+    // Empty function to force class to load.
+}
+
 #if TARGET_OS_IOS == 1 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
     #import <UserNotifications/UserNotifications.h>
     #import <UserNotifications/UNUserNotificationCenter.h>
@@ -27,27 +36,60 @@
 NSString *const ekBMAppKey = @"branchKey";
 NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 
+#pragma mark - MPKitBranchMetrics
+
 @interface MPKitBranchMetrics()
-@property (strong) Branch *branchInstance;
++ (nonnull NSNumber *)kitCode;
+
+- (nonnull MPKitExecStatus *)didFinishLaunchingWithConfiguration:(nonnull NSDictionary *)configuration;
+
+- (void)start;
+
+- (nonnull MPKitExecStatus *)continueUserActivity:(nonnull NSUserActivity *)userActivity
+    restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler;
+
+- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url options:(nullable NSDictionary<NSString *, id> *)options;
+
+- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url
+                   sourceApplication:(nullable NSString *)sourceApplication
+                          annotation:(nullable id)annotation;
+
+- (nonnull MPKitExecStatus *)receivedUserNotification:(nonnull NSDictionary *)userInfo;
+- (nonnull MPKitExecStatus *)logCommerceEvent:(nonnull MPCommerceEvent *)commerceEvent;
+- (nonnull MPKitExecStatus *)logEvent:(nonnull MPEvent *)event;
+- (nonnull MPKitExecStatus *)setKitAttribute:(nonnull NSString *)key value:(nullable id)value;
+- (nonnull MPKitExecStatus *)setOptOut:(BOOL)optOut;
+
+@property (strong, nullable) Branch *branchInstance;
 @property (assign) BOOL forwardScreenViews;
+@property (nonatomic, unsafe_unretained, readwrite) BOOL started;
 @end
+
+#pragma mark - MPKitBranchMetrics
 
 @implementation MPKitBranchMetrics
 
 @synthesize kitApi = _kitApi;
+
++ (void)initialize {
+    NSLog(@"Yope"); //EBS
+}
 
 + (NSNumber *)kitCode {
     return @80;
 }
 
 + (void)load {
-    MPKitRegister *kitRegister = [[MPKitRegister alloc] initWithName:@"BranchMetrics" className:@"MPKitBranchMetrics"];
+    MPKitRegister *kitRegister =
+        [[MPKitRegister alloc]
+            initWithName:@"BranchMetrics"
+            className:@"MPKitBranchMetrics"];
     [MParticle registerExtension:kitRegister];
 }
 
 - (MPKitExecStatus*) execStatus:(MPKitReturnCode)returnCode {
     return [[MPKitExecStatus alloc]
-        initWithSDKCode:[[self class] kitCode]
+        initWithSDKCode:self.class.kitCode
         returnCode:MPKitReturnCodeSuccess];
 }
 
@@ -59,7 +101,6 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         return [self execStatus:MPKitReturnCodeRequirementsNotMet];
     }
 
-    self.branchInstance = nil;
     self.forwardScreenViews = [configuration[ekBMAForwardScreenViews] boolValue];
     _configuration = configuration;
     _started = NO;
@@ -108,7 +149,18 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     });
 }
 
-- (nonnull MPKitExecStatus *)continueUserActivity:(nonnull NSUserActivity *)userActivity restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler {
+- (nonnull MPKitExecStatus *)setOptOut:(BOOL)optOut {
+    [Branch setTrackingDisabled:optOut];
+    return [self execStatus:MPKitReturnCodeSuccess];
+}
+
+- (nonnull MPKitExecStatus *)setKitAttribute:(nonnull NSString *)key value:(nullable id)value {
+    [self.kitApi logError:@"Unrecognized key attibute '%@'.", key];
+    return [self execStatus:MPKitReturnCodeUnavailable];
+}
+
+- (nonnull MPKitExecStatus *)continueUserActivity:(nonnull NSUserActivity *)userActivity
+                               restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler {
     [self.branchInstance continueUserActivity:userActivity];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
@@ -119,11 +171,14 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 }
 
 - (MPKitExecStatus *)logEvent:(MPEvent *)event {
-    if (event.info.count > 0) {
-        [self.branchInstance userCompletedAction:event.name withState:event.info];
-    } else {
-        [self.branchInstance userCompletedAction:event.name];
-    }
+    BranchEvent *branchEvent = [self branchEventWithEvent:event];
+    [branchEvent logEvent];
+    return [self execStatus:MPKitReturnCodeSuccess];
+}
+
+- (nonnull MPKitExecStatus *)logCommerceEvent:(nonnull MPCommerceEvent *)commerceEvent {
+//    BranchEvent *branchEvent = [self branchEventWithCommerceEvent:commerceEvent];
+//    [branchEvent logEvent];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
 
@@ -142,7 +197,8 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     return [self execStatus:MPKitReturnCodeSuccess];
 }
 
-- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url options:(nullable NSDictionary<NSString *, id> *)options {
+- (nonnull MPKitExecStatus *)openURL:(nonnull NSURL *)url
+                             options:(nullable NSDictionary<NSString *, id> *)options {
     [self.branchInstance handleDeepLink:url];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
@@ -180,6 +236,167 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     }
     [self.branchInstance setIdentity:identityString];
     return [self execStatus:MPKitReturnCodeSuccess];
+}
+
+#pragma mark - Event Transformation
+
+#define addStringField(field, name) { \
+    NSString *value = dictionary[@#name]; \
+    if (value) { \
+        if ([value isKindOfClass:NSString.class]) \
+            field = value; \
+        else \
+            field = [value description]; \
+        dictionary[@#name] = nil; \
+    } \
+}
+
+#define addDecimalField(field, name) { \
+    NSString *value = dictionary[@#name]; \
+    if (value) { \
+        if (![value isKindOfClass:NSString.class]) \
+            value = [value description]; \
+        field = [NSDecimalNumber decimalNumberWithString:value]; \
+        dictionary[@#name] = nil; \
+    } \
+}
+
+#define addDoubleField(field, name) { \
+    NSNumber *value = dictionary[@#name]; \
+    if ([value respondsToSelector:@selector(doubleValue)]) { \
+        field = [value doubleValue]; \
+        dictionary[@#name] = nil; \
+    } \
+}
+
+- (BranchUniversalObject*) branchUniversalObjectFromDictionary:(NSMutableDictionary*)dictionary {
+    NSInteger startCount = dictionary.count;
+    BranchUniversalObject *object = [[BranchUniversalObject alloc] init];
+    
+    addStringField(object.canonicalIdentifier, Id);
+    addStringField(object.title, Name);
+    addStringField(object.contentMetadata.productBrand, Brand);
+    addStringField(object.contentMetadata.productVariant, Variant);
+    addStringField(object.contentMetadata.productCategory, Category);
+    addDecimalField(object.contentMetadata.price, Item Price);
+    addDoubleField(object.contentMetadata.quantity, Quantity);
+
+    return (dictionary.count == startCount) ? nil : object;
+}
+
+- (NSString*) stringFromObject:(id<NSObject>)object {
+    if (object == nil) return nil;
+    if ([object isKindOfClass:NSString.class]) {
+        return (NSString*) object;
+    } else
+    if ([object respondsToSelector:@selector(stringValue)]) {
+        return [(id)object stringValue];
+    }
+    return [object description];
+}
+
+- (NSMutableDictionary*) stringDictionaryFromDictionary:(NSDictionary*)dictionary_ {
+    if (dictionary_ == nil) return nil;
+    NSMutableDictionary *dictionary = [NSMutableDictionary new];
+    for(id<NSObject> key in dictionary_.keyEnumerator) {
+        NSString* stringValue = [self stringFromObject:dictionary_[key]];
+        NSString* stringKey = [self stringFromObject:key];
+        if (stringKey) dictionary[stringKey] = stringValue;
+    }
+    return dictionary;
+}
+
+- (BranchEvent*) branchEventWithEvent:(MPEvent*)mpEvent {
+    if (mpEvent.messageType == MPMessageTypeEvent)
+        return [self branchEventWithStandardEvent:mpEvent];
+    else
+    if ([mpEvent.name hasPrefix:@"eCommerce"] && [mpEvent.info[@"an"] length] > 0)
+        return [self branchEventWithPromotionEvent:mpEvent];
+    else
+        return [self branchEventWithCommerceEvent:mpEvent];
+}
+
+- (BranchEvent*) branchEventWithStandardEvent:(MPEvent*)mpEvent {
+    NSString *eventName = nil;
+    switch (mpEvent.type) {
+    case MPEventTypeSearch:         eventName = BranchStandardEventSearch;      break;
+    case MPEventTypeUserContent:    eventName = BranchStandardEventViewItem;    break;
+    case MPEventTypeAddToCart:      eventName = BranchStandardEventAddToCart;   break;
+    case MPEventTypeCheckout:
+    case MPEventTypeCheckoutOption: eventName = BranchStandardEventInitiatePurchase; break;
+    case MPEventTypeClick:
+    case MPEventTypeViewDetail:     eventName = BranchStandardEventViewItem;    break;
+    case MPEventTypePurchase:       eventName = BranchStandardEventPurchase;    break;
+    case MPEventTypeAddToWishlist:  eventName = BranchStandardEventAddToWishlist; break;
+    default: break;
+    }
+    if (!eventName.length) eventName = mpEvent.typeName;
+    if (!eventName.length) eventName = [NSString stringWithFormat:@"mParticle event type %ld", (long)mpEvent.type];
+
+    BranchEvent *event = [BranchEvent customEventWithName:eventName];
+    event.eventDescription = mpEvent.name;
+    [event.customData addEntriesFromDictionary:[self stringDictionaryFromDictionary:mpEvent.customFlags]];
+    [event.customData addEntriesFromDictionary:[self stringDictionaryFromDictionary:mpEvent.info]];
+    if (mpEvent.category.length) event.customData[@"category"] = mpEvent.category;
+    return event;
+}
+
+- (BranchEvent*) branchEventWithPromotionEvent:(MPEvent*)mpEvent {
+    NSString *eventName = nil;
+    NSString *actionName = mpEvent.info[@"an"];
+    if ([actionName isEqualToString:@"view"])
+        eventName = @"VIEW_PROMOTION";
+    else
+    if ([actionName isEqualToString:@"click"])
+        eventName = @"CLICK_PROMOTION";
+    else
+    if (actionName.length > 0)
+        eventName = actionName;
+    else
+        eventName = @"PROMOTION";
+    NSArray *productList = mpEvent.info[@"pl"];
+    NSDictionary *product = nil;
+    if ([productList isKindOfClass:NSArray.class] && productList.count > 0)
+        product = productList[0];
+
+    BranchEvent *event = [BranchEvent customEventWithName:eventName];
+    event.eventDescription = mpEvent.name;
+    event.customData = [self stringDictionaryFromDictionary:product];
+    [event.customData addEntriesFromDictionary:[self stringDictionaryFromDictionary:mpEvent.customFlags]];
+
+    return event;
+}
+
+- (BranchEvent*) branchEventWithCommerceEvent:(MPEvent*)mpEvent {
+    NSDictionary *branchEventNames = @{
+        @"eCommerce - add_to_cart - Item":  BranchStandardEventAddToCart,
+        @"eCommerce - view - Item":         BranchStandardEventViewItem,
+    };
+
+    NSString *name = nil;
+    if (mpEvent.name) name = branchEventNames[mpEvent.name];
+    if (!name) name = mpEvent.name;
+    if (!name) name = @"Other Event";
+
+    BranchEvent *event = [BranchEvent customEventWithName:name];
+    event.eventDescription = mpEvent.name;
+    NSMutableDictionary *dictionary = [mpEvent.info mutableCopy];
+    BranchUniversalObject *object = [self branchUniversalObjectFromDictionary:dictionary];
+    if (object) [event.contentItems addObject:object];
+
+    addStringField(event.transactionID, Transaction Id);
+    addStringField(event.currency, Currency);
+    addDecimalField(event.revenue, Total Product Amount);
+    addDecimalField(event.shipping, Shipping Amount);
+    addDecimalField(event.tax, Tax Amount);
+    addStringField(event.coupon, Coupon Code);
+    addStringField(event.affiliation, Affiliation);
+    addStringField(event.searchQuery, Search);
+    addStringField(event.eventDescription, mpEvent.name);
+    [event.customData addEntriesFromDictionary:[self stringDictionaryFromDictionary:mpEvent.customFlags]];
+    [event.customData addEntriesFromDictionary:[self stringDictionaryFromDictionary:dictionary]];
+
+    return event;
 }
 
 @end

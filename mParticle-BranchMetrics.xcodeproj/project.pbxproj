@@ -57,10 +57,10 @@
 		DB94016E1CB703F2007ABB18 /* mParticle-BranchMetrics */ = {
 			isa = PBXGroup;
 			children = (
+				DB9401711CB703F2007ABB18 /* Info.plist */,
+				DB94016F1CB703F2007ABB18 /* mParticle_BranchMetrics.h */,
 				DB7E05A41CB819D300967FDF /* MPKitBranchMetrics.h */,
 				DB7E05A51CB819D300967FDF /* MPKitBranchMetrics.m */,
-				DB94016F1CB703F2007ABB18 /* mParticle_BranchMetrics.h */,
-				DB9401711CB703F2007ABB18 /* Info.plist */,
 			);
 			path = "mParticle-BranchMetrics";
 			sourceTree = "<group>";
