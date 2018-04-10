@@ -60,16 +60,14 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 - (nonnull MPKitExecStatus *)setKitAttribute:(nonnull NSString *)key value:(nullable id)value;
 - (nonnull MPKitExecStatus *)setOptOut:(BOOL)optOut;
 
-@property (strong, nullable) Branch *branchInstance;
 @property (assign) BOOL forwardScreenViews;
+@property (strong, nullable) Branch *branchInstance;
 @property (nonatomic, unsafe_unretained, readwrite) BOOL started;
 @end
 
 #pragma mark - MPKitBranchMetrics
 
 @implementation MPKitBranchMetrics
-
-@synthesize kitApi = _kitApi;
 
 + (void)initialize {
     NSLog(@"Yope"); //EBS
@@ -81,16 +79,13 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 
 + (void)load {
     MPKitRegister *kitRegister =
-        [[MPKitRegister alloc]
-            initWithName:@"BranchMetrics"
+        [[MPKitRegister alloc] initWithName:@"BranchMetrics"
             className:@"MPKitBranchMetrics"];
     [MParticle registerExtension:kitRegister];
 }
 
 - (MPKitExecStatus*) execStatus:(MPKitReturnCode)returnCode {
-    return [[MPKitExecStatus alloc]
-        initWithSDKCode:self.class.kitCode
-        returnCode:MPKitReturnCodeSuccess];
+    return [[MPKitExecStatus alloc] initWithSDKCode:self.class.kitCode returnCode:returnCode];
 }
 
 #pragma mark - MPKitInstanceProtocol Methods
@@ -177,8 +172,8 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 }
 
 - (nonnull MPKitExecStatus *)logCommerceEvent:(nonnull MPCommerceEvent *)commerceEvent {
-//    BranchEvent *branchEvent = [self branchEventWithCommerceEvent:commerceEvent];
-//    [branchEvent logEvent];
+    BranchEvent *branchEvent = [self branchEventWithCommerceEvent:commerceEvent];
+    [branchEvent logEvent];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
 
@@ -306,6 +301,108 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     return dictionary;
 }
 
+- (NSString*) branchEventFromEventType:(MPEventType)eventType {
+    NSArray *kBranchEvents = @[
+@"UNKNOWN",                         // MPEventTypeNavigation = 1,
+@"LOCATION",                        // MPEventTypeLocation = 2,
+BranchStandardEventSearch,          // MPEventTypeSearch = 3,
+// MPEventTypeTransaction = 4,
+// MPEventTypeUserContent = 5,
+// MPEventTypeUserPreference = 6,
+// MPEventTypeSocial = 7,
+// MPEventTypeOther = 8,
+// 9 used to be MPEventTypeMedia. It has been discontinued
+// MPEventTypeAddToCart = 10,
+// MPEventTypeRemoveFromCart = 11,
+// MPEventTypeCheckout = 12,
+// MPEventTypeCheckoutOption = 13,
+// MPEventTypeClick = 14,
+// MPEventTypeViewDetail = 15,
+// MPEventTypePurchase = 16,
+// MPEventTypeRefund = 17,
+// MPEventTypePromotionView = 18,
+// MPEventTypePromotionClick = 19,
+// MPEventTypeAddToWishlist = 20,
+BranchStandardEventAddToWishlist,   // MPEventTypeRemoveFromWishlist = 21,
+// MPEventTypeImpression = 22
+    ];
+
+    /*
+    typedef NS_ENUM(NSUInteger, MPEventType) {
+        MPEventTypeNavigation = 1,
+        MPEventTypeLocation = 2,
+        MPEventTypeSearch = 3,
+        MPEventTypeTransaction = 4,
+        MPEventTypeUserContent = 5,
+        MPEventTypeUserPreference = 6,
+        MPEventTypeSocial = 7,
+        MPEventTypeOther = 8,
+        // 9 used to be MPEventTypeMedia. It has been discontinued
+        MPEventTypeAddToCart = 10,
+        MPEventTypeRemoveFromCart = 11,
+        MPEventTypeCheckout = 12,
+        MPEventTypeCheckoutOption = 13,
+        MPEventTypeClick = 14,
+        MPEventTypeViewDetail = 15,
+        MPEventTypePurchase = 16,
+        MPEventTypeRefund = 17,
+        MPEventTypePromotionView = 18,
+        MPEventTypePromotionClick = 19,
+        MPEventTypeAddToWishlist = 20,
+        MPEventTypeRemoveFromWishlist = 21,
+        MPEventTypeImpression = 22
+    };
+    */
+    NSArray *kbranchEvents = @[
+        @"UNKNOWN",
+        @"NAVIGATION",                      //
+        @"LOCATION",                        //
+        BranchStandardEventViewItem,        //
+BranchStandardEventPurchase,
+BranchStandardEvent
+    ];
+    NSString *eventName = nil;
+    switch (eventType) {
+    case MPEventTypeSearch:         eventName = BranchStandardEventSearch;      break;
+    case MPEventTypeUserContent:    eventName = BranchStandardEventViewItem;    break;
+    case MPEventTypeAddToCart:      eventName = BranchStandardEventAddToCart;   break;
+    case MPEventTypeCheckout:
+    case MPEventTypeCheckoutOption: eventName = BranchStandardEventInitiatePurchase; break;
+    case MPEventTypeClick:
+    case MPEventTypeViewDetail:     eventName = BranchStandardEventViewItem;    break;
+    case MPEventTypePurchase:       eventName = BranchStandardEventPurchase;    break;
+    case MPEventTypeAddToWishlist:  eventName = BranchStandardEventAddToWishlist; break;
+    case MPEventTypeRemoveFromWishlist: eventName = @"REMOVE_FROM_WISHLIST";
+    case MPEventTypeAddToCart:      eventName = BranchStandardEventAddToCart;   break;
+    /** Internal. Used when a product is removed from the cart */
+    MPEventTypeRemoveFromCart = 11,
+    /** Internal. Used when the cart goes to checkout */
+    MPEventTypeCheckout = 12,
+    /** Internal. Used when the cart goes to checkout with options */
+    MPEventTypeCheckoutOption = 13,
+    /** Internal. Used when a product is clicked */
+    MPEventTypeClick = 14,
+    /** Internal. Used when user views the details of a product */
+    MPEventTypeViewDetail = 15,
+    /** Internal. Used when a product is purchased */
+    MPEventTypePurchase = 16,
+    /** Internal. Used when a product refunded */
+    MPEventTypeRefund = 17,
+    /** Internal. Used when a promotion is displayed */
+    MPEventTypePromotionView = 18,
+    /** Internal. Used when a promotion is clicked */
+    MPEventTypePromotionClick = 19,
+    /** Internal. Used when a product is added to the wishlist */
+    MPEventTypeAddToWishlist = 20,
+    /** Internal. Used when a product is removed from the wishlist */
+    MPEventTypeRemoveFromWishlist = 21,
+    /** Internal. Used when a product is displayed in a promotion */
+    MPEventTypeImpression = 22
+
+    default: break;
+    }
+}
+
 - (BranchEvent*) branchEventWithEvent:(MPEvent*)mpEvent {
     if (mpEvent.messageType == MPMessageTypeEvent)
         return [self branchEventWithStandardEvent:mpEvent];
@@ -313,7 +410,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     if ([mpEvent.name hasPrefix:@"eCommerce"] && [mpEvent.info[@"an"] length] > 0)
         return [self branchEventWithPromotionEvent:mpEvent];
     else
-        return [self branchEventWithCommerceEvent:mpEvent];
+        return [self branchEventWithOldCommerceEvent:mpEvent];
 }
 
 - (BranchEvent*) branchEventWithStandardEvent:(MPEvent*)mpEvent {
@@ -367,18 +464,34 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     return event;
 }
 
-- (BranchEvent*) branchEventWithCommerceEvent:(MPEvent*)mpEvent {
-    NSDictionary *branchEventNames = @{
-        @"eCommerce - add_to_cart - Item":  BranchStandardEventAddToCart,
-        @"eCommerce - view - Item":         BranchStandardEventViewItem,
-    };
+- (BranchEvent*) branchEventWithOldCommerceEvent:(MPEvent*)mpEvent {
+    NSArray *actionNames = @[
+        @"add_to_cart",
+        @"remove_from_cart",
+        @"add_to_wishlist",
+        @"remove_from_wishlist",
+        @"checkout",
+        @"checkout_option",
+        @"click",
+        @"view_detail",
+        @"purchase",
+        @"refund"
+    ];
+    int i = 0;
+    NSString *eventName = nil;
+    for (NSString *action in actionNames) {
+        if (i >= self.branchEvents.count)
+            break;
+        if ([mpEvent.name rangeOfString:action].location != NSNotFound) {
+            eventName = self.branchEvents[i];
+            break;
+        }
+        ++i;
+    }
 
-    NSString *name = nil;
-    if (mpEvent.name) name = branchEventNames[mpEvent.name];
-    if (!name) name = mpEvent.name;
-    if (!name) name = @"Other Event";
-
-    BranchEvent *event = [BranchEvent customEventWithName:name];
+    if (!eventName) eventName = mpEvent.name;
+    if (!eventName) eventName = @"other_event";
+    BranchEvent *event = [BranchEvent customEventWithName:eventName];
     event.eventDescription = mpEvent.name;
     NSMutableDictionary *dictionary = [mpEvent.info mutableCopy];
     BranchUniversalObject *object = [self branchUniversalObjectFromDictionary:dictionary];
@@ -395,6 +508,136 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     addStringField(event.eventDescription, mpEvent.name);
     [event.customData addEntriesFromDictionary:[self stringDictionaryFromDictionary:mpEvent.customFlags]];
     [event.customData addEntriesFromDictionary:[self stringDictionaryFromDictionary:dictionary]];
+
+    return event;
+}
+
+- (BranchUniversalObject*) branchUniversalObjectFromProduct:(MPProduct*)product {
+    BranchUniversalObject *buo = [BranchUniversalObject new];
+    buo.contentMetadata.productBrand = product.brand;
+    buo.contentMetadata.productCategory = product.category;
+    buo.contentMetadata.customMetadata[@"coupon"] = product.couponCode;
+    buo.title = product.name;
+    buo.contentMetadata.price = [self decimal:product.price];
+    buo.contentMetadata.sku = product.sku;
+    buo.contentMetadata.productVariant = product.variant;
+    buo.contentMetadata.customMetadata[@"position"] =
+    [NSString stringWithFormat:@"%lu", (unsigned long) product.position];
+    buo.contentMetadata.quantity = [product.quantity doubleValue];
+    return buo;
+}
+
+- (NSDecimalNumber*) decimal:(NSNumber*)number {
+    return [NSDecimalNumber decimalNumberWithDecimal:number.decimalValue];
+}
+
+- (
+    MPEventTypeAddToCart = 10,
+    /** Internal. Used when a product is removed from the cart */
+    MPEventTypeRemoveFromCart = 11,
+    /** Internal. Used when the cart goes to checkout */
+    MPEventTypeCheckout = 12,
+    /** Internal. Used when the cart goes to checkout with options */
+    MPEventTypeCheckoutOption = 13,
+    /** Internal. Used when a product is clicked */
+    MPEventTypeClick = 14,
+    /** Internal. Used when user views the details of a product */
+    MPEventTypeViewDetail = 15,
+    /** Internal. Used when a product is purchased */
+    MPEventTypePurchase = 16,
+    /** Internal. Used when a product refunded */
+    MPEventTypeRefund = 17,
+    /** Internal. Used when a promotion is displayed */
+    MPEventTypePromotionView = 18,
+    /** Internal. Used when a promotion is clicked */
+    MPEventTypePromotionClick = 19,
+    /** Internal. Used when a product is added to the wishlist */
+    MPEventTypeAddToWishlist = 20,
+    /** Internal. Used when a product is removed from the wishlist */
+    MPEventTypeRemoveFromWishlist = 21,
+    /** Internal. Used when a product is displayed in a promotion */
+    MPEventTypeImpression = 22
+)
+- (NSArray<NSString*>*) branchEventsInActionOrder {
+    /*
+    typedef NS_ENUM(NSUInteger, MPCommerceEventAction) {
+        MPCommerceEventActionAddToCart = 0,
+        MPCommerceEventActionRemoveFromCart,
+        MPCommerceEventActionAddToWishList,
+        MPCommerceEventActionRemoveFromWishlist,
+        MPCommerceEventActionCheckout,
+        MPCommerceEventActionCheckoutOptions,
+        MPCommerceEventActionClick,
+        MPCommerceEventActionViewDetail,
+        MPCommerceEventActionPurchase,
+        MPCommerceEventActionRefund
+    };
+    */
+    NSArray *kBranchEvents = @[
+        BranchStandardEventAddToCart,
+        @"REMOVE_FROM_CART",
+        BranchStandardEventAddToWishlist,
+        @"REMOVE_FROM_WISHLIST",
+        BranchStandardEventInitiatePurchase,
+        BranchStandardEventInitiatePurchase,
+        BranchStandardEventViewItem,
+        BranchStandardEventViewItem,
+        BranchStandardEventPurchase,
+        @"REFUND",
+    ];
+    return kBranchEvents;
+}
+
+- (NSArray<NSString*>*) branchEventInTypeOrder {
+    NSArray *kBranchEvents = @[
+    ];
+}
+
+- (BranchEvent*) branchEventWithCommerceEvent:(MPCommerceEvent*)mpEvent {
+    NSString *eventName = nil;
+    if (mpEvent.action < self.branchEvents.count)
+        eventName = self.branchEvents[mpEvent.action];
+    else
+    if (mpEvent.type == MPEventTypeImpression
+        eventName = [NSString stringWithFormat:@"mParticle commerce event %ld", mpEvent.action];
+    BranchEvent *event = [BranchEvent customEventWithName:eventName];
+    event.customData[@"checkout_options"] = mpEvent.checkoutOptions;
+    event.currency = mpEvent.currency;
+    for (NSString* impression in mpEvent.impressions.keyEnumerator) {
+        NSSet *set = mpEvent.impressions[impression];
+        for (MPProduct *product in set) {
+            BranchUniversalObject *obj = [self branchUniversalObjectFromProduct:product];
+            if (obj) {
+                obj.contentMetadata.customMetadata[@"impression"] = impression;
+                [event.contentItems addObject:obj];
+            }
+        }
+    }
+    for (MPProduct *product in mpEvent.products) {
+        BranchUniversalObject *obj = [self branchUniversalObjectFromProduct:product];
+        if (obj) [event.contentItems addObject:obj];
+    }
+
+    for (MPPromotion *promo in mpEvent.promotionContainer.promotions) {
+        BranchUniversalObject *obj = [BranchUniversalObject new];
+        obj.canonicalIdentifier = promo.promotionId;
+        obj.title = promo.name;
+        obj.contentMetadata.customMetadata[@"position"] = promo.position;
+        obj.contentMetadata.customMetadata[@"creative"] = promo.creative;
+        [event.contentItems addObject:obj];
+    }
+
+    event.customData[@"product_list_name"] = mpEvent.productListName;
+    event.customData[@"product_list_source"] = mpEvent.productListSource;
+    event.customData[@"screen_name"] = mpEvent.screenName;
+    event.affiliation = mpEvent.transactionAttributes.affiliation;
+    event.coupon = mpEvent.transactionAttributes.couponCode;
+    event.shipping = [self decimal:mpEvent.transactionAttributes.shipping];
+    event.tax = [self decimal:mpEvent.transactionAttributes.tax];
+    event.revenue = [self decimal:mpEvent.transactionAttributes.revenue];
+    event.transactionID = mpEvent.transactionAttributes.transactionId;
+    event.customData[@"checkout_step"] = [NSString stringWithFormat:@"%ld", mpEvent.checkoutStep];
+    event.customData[@"non_interactive"] = mpEvent.nonInteractive ? @"true" : @"false";
 
     return event;
 }
