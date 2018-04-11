@@ -2,7 +2,7 @@
 //  EventViewController.swift
 //  Fortune
 //
-//  Created by Edward on 2/5/18.
+//  Created by Edward Smith on 2/5/18.
 //  Copyright © 2018 Branch. All rights reserved.
 //
 
@@ -43,8 +43,8 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
 
         self.tableData.addSection(title: "Life Cycle Events")
         self.tableData.addRow(title: "Set User Identity", style: .plain, selector:#selector(setIdentity(row:)))
-        self.tableData.addRow(title: "Set User Alias", style: .plain, selector:#selector(setIdentity(row:)))
-        self.tableData.addRow(title: "Log User Out", style: .plain, selector:#selector(setIdentity(row:)))
+        self.tableData.addRow(title: "Set User Alias", style: .plain, selector:#selector(setIdentityAlias(row:)))
+        self.tableData.addRow(title: "Log User Out", style: .plain, selector:#selector(logUserOut(row:)))
 
         self.tableData.addSection(title: "View Events")
         self.tableData.addRow(title: "View Screen - Simple", style: .plain, selector:#selector(logScreenSimple(row:)))
@@ -109,10 +109,6 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
         self.tableView.tableFooterView?.backgroundColor = .clear
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-    }
-
     // MARK: - Table View Delegate & Data Source
 
     func numberOfSections(in tableView: UITableView) -> Int {
@@ -160,7 +156,6 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let row = self.tableData.row(indexPath:indexPath)
-        //BNCLogDebug("Selected index %ld:%ld: %@.", indexPath.section, indexPath.row, row.title)
         BNCLog(.debug, "Selected index \(indexPath.section):\(indexPath.row): \(row.title).")
         if (row.style != .toggleSwitch) {
             if (row.selector != nil) {
@@ -212,12 +207,33 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
     // MARK: - User Events
 
     @IBAction func setIdentity(row: AnyObject) {
+        let identityRequest = MPIdentityApiRequest.withEmptyUser()
+        identityRequest.email = "foo@example.com"
+        identityRequest.customerId = "123456"
+        //alternatively, you can use the setUserIdentity method and supply the MPUserIdentity type
+        identityRequest.setUserIdentity("bar-id", identityType: MPUserIdentity.other)
     }
 
     @IBAction func setIdentityAlias(row: AnyObject) {
+        self.promptForAlias { (alias) in
+            if let alias = alias, alias.count > 0 {
+                self.showAlert(title: "Alias", message: "Alias is \(alias)")
+            }
+        }
     }
 
-    @IBAction func logOut(row: AnyObject) {
+    func promptForAlias(completion: ((String?) -> Void)?) {
+        if self.keyboardEditor != nil { return }
+        self.keyboardEditor = APKeyboardEditor.presentFromViewController(
+            viewController: self,
+            completion: { (resultText) in
+                completion?(resultText)
+                self.keyboardEditor = nil
+            }
+        )
+    }
+
+    @IBAction func logUserOut(row: AnyObject) {
     }
 
     // MARK: - Screen Events
@@ -292,6 +308,8 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
 
     func createCommerceEvent(action: MPCommerceEventAction) -> MPCommerceEvent {
         /*
+        Commerce event fields:
+
         @property (nonatomic, strong, nullable) NSString *checkoutOptions;
         @property (nonatomic, strong, nullable) NSString *currency;
         @property (nonatomic, strong, readonly, nullable) NSDictionary<NSString *, __kindof NSSet<MPProduct *> *> *impressions;
@@ -354,7 +372,6 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
         @property (nonatomic, strong, nullable) NSString *position;
         @property (nonatomic, strong, nullable) NSString *promotionId;
         */
-
         let promotion = MPPromotion.init()
         promotion.promotionId = "my_promo_1"
         promotion.creative = "sale_banner_1"
@@ -373,7 +390,6 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
         @property (nonatomic, strong, nullable) NSString *position;
         @property (nonatomic, strong, nullable) NSString *promotionId;
         */
-
         let promotion = MPPromotion.init()
         promotion.promotionId = "my_promo_1"
         promotion.creative = "sale_banner_1"
@@ -440,42 +456,4 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
         let e = self.createCommerceEvent(action: .refund)
         MParticle.sharedInstance().logCommerceEvent(e)
     }
-
-    /*
-    func promptForIdentity(completion: ((String?) -> Void)?) {
-        if self.keyboardEditor != nil { return }
-        self.keyboardEditor = APKeyboardEditor.presentFromViewController(viewController: self, completion: {
-            (resultText) in
-            completion?(resultText)
-            self.keyboardEditor = nil
-        })
-    }
-
-    func trackSegmentEvent() {
-        let keys: [ String ] = Array(AppData.shared.segmentEvents.keys)
-        print("Events:\n\(keys)\n.")
-        let picker = APArrayPickerView.init(array: keys)
-        picker.doneButtonTitle = "Send"
-        picker.presentFromViewController(viewController: self, completion: { (selection: String?) in
-            self.sendSegmentEvent(selection: selection)
-        })
-    }
-
-    func selectSegmentEvent(selection: String?) {
-        if let selection: String = selection, let body = AppData.shared.segmentEvents[selection]  {
-            self.eventNameLabel.text = selection
-            self.eventBodyTextView.text = body.description
-        } else {
-            self.eventNameLabel.text = ""
-            self.eventBodyTextView.text = ""
-        }
-    }
-
-    func sendSegmentEvent(selection: String?) {
-        self.selectSegmentEvent(selection: selection)
-        if let selection: String = selection, let body = AppData.shared.segmentEvents[selection]  {
-            Analytics.track(selection, properties: body as? [String : Any])
-        }
-    }
-    */
 }

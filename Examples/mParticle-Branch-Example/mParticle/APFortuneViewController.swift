@@ -26,12 +26,6 @@ class APFortuneViewController: UIViewController {
 
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(branchWillStartSession(notification:)),
-            name: NSNotification.Name.BranchWillStartSession,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
             selector: #selector(branchDidStartSession(notification:)),
             name: NSNotification.Name.BranchDidStartSession,
             object: nil
@@ -90,19 +84,7 @@ class APFortuneViewController: UIViewController {
         updateStatsLabel()
     }
 
-    @objc func branchWillStartSession(notification: Notification) {
-        // Only show the waiting view if we've been opened by an URL tap:
-//        guard let url = notification.userInfo?[BranchURLKey] as? URL else { return }
-//        APWaitingViewController.showWithMessage(
-//            message: "Opening\n\(url.absoluteString)",
-//            activityIndicator: true,
-//            disableTouches: true
-//        )
-    }
-
     @objc func branchDidStartSession(notification: Notification) {
-//      APWaitingViewController.hide()
-
         if let error = notification.userInfo?[BranchErrorKey] as? Error {
             if let url = notification.userInfo?[BranchURLKey] as? URL {
                 self.showAlert(
@@ -135,7 +117,7 @@ class APFortuneViewController: UIViewController {
 
         // Add some content to the Branch object:
         let buo = BranchUniversalObject.init()
-        buo.title = "Segment-Branch Example"
+        buo.title = "Branch Example"
         buo.contentDescription = "A mysterious fortune."
         buo.contentMetadata.customMetadata["message"] = message
         buo.contentMetadata.customMetadata["name"] = UIDevice.current.name

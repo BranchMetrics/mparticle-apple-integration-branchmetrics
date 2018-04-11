@@ -25,8 +25,8 @@
 
 __attribute__((constructor))
 void MPKitBranchMetricsLoadClass(void) {
-    NSLog(@"Dope, bro.");
     // Empty function to force class to load.
+    // NSLog(@"MPKitBranchMetricsLoadClass().");
 }
 
 @interface MPEvent (Branch)
@@ -80,10 +80,6 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 #pragma mark - MPKitBranchMetrics
 
 @implementation MPKitBranchMetrics
-
-+ (void)initialize {
-    NSLog(@"Yope"); //EBS
-}
 
 + (NSNumber *)kitCode {
     return @80;
@@ -321,7 +317,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     return dictionary;
 }
 
-- (NSString*) branchEventFromEventType:(MPEventType)eventType {
+- (NSString*) branchEventNameFromEventType:(MPEventType)eventType {
     @synchronized (self) {
         if (!_branchEventTypes) {
             _branchEventTypes = @[
@@ -406,7 +402,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         eventName = BranchStandardEventViewItem;
     } else
     if (mpEvent.messageType == MPMessageTypeEvent) {
-        eventName = [self branchEventFromEventType:mpEvent.type];
+        eventName = [self branchEventNameFromEventType:mpEvent.type];
         if (!eventName.length)
             eventName = mpEvent.typeName;
         if (!eventName.length)
@@ -415,7 +411,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         int i = 0;
         for (NSString *action in actionNames) {
             if ([mpEvent.name rangeOfString:action].location != NSNotFound) {
-                eventName = [self branchEventFromEventAction:i];
+                eventName = [self branchEventNameFromEventAction:i];
                 break;
             }
             ++i;
@@ -449,13 +445,15 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     buo.contentMetadata.productBrand = product.brand;
     buo.contentMetadata.productCategory = product.category;
     buo.contentMetadata.customMetadata[@"coupon"] = product.couponCode;
-    buo.title = product.name;
+    buo.contentMetadata.productName = product.name;
     buo.contentMetadata.price = [self decimal:product.price];
     buo.contentMetadata.sku = product.sku;
     buo.contentMetadata.productVariant = product.variant;
     buo.contentMetadata.customMetadata[@"position"] =
-    [NSString stringWithFormat:@"%lu", (unsigned long) product.position];
+        [NSString stringWithFormat:@"%lu", (unsigned long) product.position];
     buo.contentMetadata.quantity = [product.quantity doubleValue];
+    [buo.contentMetadata.customMetadata addEntriesFromDictionary:
+        [self stringDictionaryFromDictionary:product.userDefinedAttributes]];
     return buo;
 }
 
@@ -463,7 +461,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     return [NSDecimalNumber decimalNumberWithDecimal:number.decimalValue];
 }
 
-- (NSString*) branchEventFromEventAction:(MPCommerceEventAction)action {
+- (NSString*) branchEventNameFromEventAction:(MPCommerceEventAction)action {
     /*
     typedef NS_ENUM(NSUInteger, MPCommerceEventAction) {
         MPCommerceEventActionAddToCart = 0,
@@ -499,9 +497,9 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 }
 
 - (BranchEvent*) branchEventWithCommerceEvent:(MPCommerceEvent*)mpEvent {
-    NSString *eventName = [self branchEventFromEventAction:mpEvent.action];
+    NSString *eventName = [self branchEventNameFromEventAction:mpEvent.action];
     if (!eventName)
-        eventName = [self branchEventFromEventType:mpEvent.type];
+        eventName = [self branchEventNameFromEventType:mpEvent.type];
     if (!eventName)
         eventName = [NSString stringWithFormat:@"mParticle commerce event %ld", (long) mpEvent.action];
     BranchEvent *event = [BranchEvent customEventWithName:eventName];
@@ -519,9 +517,11 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     }
     for (MPProduct *product in mpEvent.products) {
         BranchUniversalObject *obj = [self branchUniversalObjectFromProduct:product];
-        if (obj) [event.contentItems addObject:obj];
+        if (obj) {
+            obj.contentMetadata.currency = mpEvent.currency;
+            [event.contentItems addObject:obj];
+        }
     }
-
     for (MPPromotion *promo in mpEvent.promotionContainer.promotions) {
         BranchUniversalObject *obj = [BranchUniversalObject new];
         obj.canonicalIdentifier = promo.promotionId;
@@ -530,7 +530,6 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         obj.contentMetadata.customMetadata[@"creative"] = promo.creative;
         [event.contentItems addObject:obj];
     }
-
     event.customData[@"product_list_name"] = mpEvent.productListName;
     event.customData[@"product_list_source"] = mpEvent.productListSource;
     event.customData[@"screen_name"] = mpEvent.screenName;
@@ -544,7 +543,6 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     if (checkoutStep >= 0 && checkoutStep < (NSInteger) 0x7fffffff)
         event.customData[@"checkout_step"] = [NSString stringWithFormat:@"%ld", mpEvent.checkoutStep];
     event.customData[@"non_interactive"] = mpEvent.nonInteractive ? @"true" : @"false";
-
     return event;
 }
 

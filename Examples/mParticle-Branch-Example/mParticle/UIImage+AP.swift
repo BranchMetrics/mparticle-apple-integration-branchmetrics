@@ -2,7 +2,7 @@
 //  UIImage+AP.swift
 //  Fortune
 //
-//  Created by Edward on 2/12/18.
+//  Created by Edward Smith on 2/12/18.
 //  Copyright © 2018 Branch. All rights reserved.
 //
 

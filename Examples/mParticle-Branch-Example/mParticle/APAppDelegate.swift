@@ -24,7 +24,6 @@ class APAppDelegate: UIResponder, UIApplicationDelegate {
 
         // Turn on all the debug output for testing:
         BNCLogSetDisplayLevel(.all)
-        MPKitBranchMetricsLoadClass()
 
         // Start mParticle
         let options = MParticleOptions.init(

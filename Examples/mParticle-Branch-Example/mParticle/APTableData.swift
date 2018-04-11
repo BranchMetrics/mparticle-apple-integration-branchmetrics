@@ -2,7 +2,7 @@
 //  APTableData.swift
 //  Fortune
 //
-//  Created by Edward on 3/22/18.
+//  Created by Edward Smith on 3/22/18.
 //  Copyright © 2018 Branch. All rights reserved.
 //
 

@@ -2,7 +2,7 @@
 //  APFadeViewControllerTransition.swift
 //  Fortune
 //
-//  Created by Edward on 2/14/18.
+//  Created by Edward Smith on 2/14/18.
 //  Copyright © 2018 Branch. All rights reserved.
 //
 
@@ -14,15 +14,14 @@ class APFadeViewControllerTransition: NSObject, UIViewControllerAnimatedTransiti
     let animationTime: TimeInterval = 0.75
 
     init(originFrame: CGRect) {
-      self.originFrame = originFrame
+        self.originFrame = originFrame
     }
 
     func transitionDuration(using transitionContext: UIViewControllerContextTransitioning?) -> TimeInterval {
-      return self.animationTime
+        return self.animationTime
     }
 
     func animateTransition(using transitionContext: UIViewControllerContextTransitioning) {
-        // See: https://www.raywenderlich.com/170144/custom-uiviewcontroller-transitions-getting-started
 
         guard
             let toVC = transitionContext.viewController(forKey: .to),
@@ -47,10 +46,6 @@ class APFadeViewControllerTransition: NSObject, UIViewControllerAnimatedTransiti
         snapshot.contentMode = .scaleAspectFit
         snapshot.backgroundColor = .white
 
-        //snapshot.alpha = 0.10
-        //snapshot.layer.borderColor = UIColor.red.cgColor
-        //snapshot.layer.borderWidth = 4.0
-
         UIView.animate(
             withDuration: duration,
             delay: 0.0,
@@ -58,7 +53,6 @@ class APFadeViewControllerTransition: NSObject, UIViewControllerAnimatedTransiti
             animations: {
                 fromVC.view.alpha = 0.0
                 snapshot.frame = finalFrame
-                //snapshot.alpha = 1.0
             },
             completion: { _ in
                 toVC.view.isHidden = false
