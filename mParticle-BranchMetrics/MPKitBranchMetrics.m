@@ -226,6 +226,9 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 }
 
 #if TARGET_OS_IOS == 1 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpartial-availability"
+
 - (nonnull MPKitExecStatus *)userNotificationCenter:(nonnull UNUserNotificationCenter *)center
                             willPresentNotification:(nonnull UNNotification *)notification {
     [self.branchInstance handlePushNotification:notification.request.content.userInfo];
@@ -237,6 +240,8 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     [self.branchInstance handlePushNotification:response.notification.request.content.userInfo];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
+
+#pragma clang diagnostic pop
 #endif
 
 - (MPKitExecStatus *)setUserIdentity:(NSString *)identityString
@@ -402,8 +407,10 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     } else
     if (mpEvent.messageType == MPMessageTypeEvent) {
         eventName = [self branchEventFromEventType:mpEvent.type];
-        if (!eventName.length) eventName = mpEvent.typeName;
-        if (!eventName.length) eventName = [NSString stringWithFormat:@"mParticle event type %ld", (long)mpEvent.type];
+        if (!eventName.length)
+            eventName = mpEvent.typeName;
+        if (!eventName.length)
+            eventName = [NSString stringWithFormat:@"mParticle event type %ld", (long)mpEvent.type];
     } else {
         int i = 0;
         for (NSString *action in actionNames) {
@@ -493,8 +500,10 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 
 - (BranchEvent*) branchEventWithCommerceEvent:(MPCommerceEvent*)mpEvent {
     NSString *eventName = [self branchEventFromEventAction:mpEvent.action];
-    if (!eventName) eventName = [self branchEventFromEventType:mpEvent.type];
-    if (!eventName) eventName = [NSString stringWithFormat:@"mParticle commerce event %ld", (long) mpEvent.action];
+    if (!eventName)
+        eventName = [self branchEventFromEventType:mpEvent.type];
+    if (!eventName)
+        eventName = [NSString stringWithFormat:@"mParticle commerce event %ld", (long) mpEvent.action];
     BranchEvent *event = [BranchEvent customEventWithName:eventName];
     event.customData[@"checkout_options"] = mpEvent.checkoutOptions;
     event.currency = mpEvent.currency;

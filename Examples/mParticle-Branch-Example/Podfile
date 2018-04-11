@@ -1,0 +1,10 @@
+platform :ios, '9.0'
+use_frameworks!
+
+target 'mParticle' do
+    # You should usually use the line below in your pod:
+    # pod 'mParticle-BranchMetrics'
+
+    # This line includes the pod the project itself.
+    pod 'mParticle-BranchMetrics', path: "../.."
+end
