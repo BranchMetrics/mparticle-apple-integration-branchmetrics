@@ -30,10 +30,10 @@ class APAppDelegate: UIResponder, UIApplicationDelegate {
             key: "fe8104a87f1fdf4d928f69c7d5dcb9bd",
             secret: "x2JpLm6QXAxCMpjxRpiDHyb4-biuW7Ddl6cdwIKct1YYvNtjeSLyJRnXFDcxyPUN"
         )
-//        let request = MPIdentityApiRequest()  EBS
-//        request.customerId = "custid_123456"
-//        request.email = "email@example.com"
-//        options.identifyRequest = request
+        let request = MPIdentityApiRequest.withEmptyUser()
+        request.email = "foo@example.com"
+        request.customerId = "cust_123456"
+        options.identifyRequest = request
 
         let mParticle = MParticle.sharedInstance()
         mParticle.logLevel = .debug

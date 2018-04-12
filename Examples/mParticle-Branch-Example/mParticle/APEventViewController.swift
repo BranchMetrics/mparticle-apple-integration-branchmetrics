@@ -43,7 +43,7 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
 
         self.tableData.addSection(title: "Life Cycle Events")
         self.tableData.addRow(title: "Set User Identity", style: .plain, selector:#selector(setIdentity(row:)))
-        self.tableData.addRow(title: "Set User Alias", style: .plain, selector:#selector(setIdentityAlias(row:)))
+        self.tableData.addRow(title: "Set User Alias", style: .plain, selector:#selector(startSetIdentityAlias(row:)))
         self.tableData.addRow(title: "Log User Out", style: .plain, selector:#selector(logUserOut(row:)))
 
         self.tableData.addSection(title: "View Events")
@@ -207,17 +207,17 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
     // MARK: - User Events
 
     @IBAction func setIdentity(row: AnyObject) {
-        let identityRequest = MPIdentityApiRequest.withEmptyUser()
-        identityRequest.email = "foo@example.com"
-        identityRequest.customerId = "123456"
-        //alternatively, you can use the setUserIdentity method and supply the MPUserIdentity type
-        identityRequest.setUserIdentity("bar-id", identityType: MPUserIdentity.other)
+        let request = MPIdentityApiRequest.withEmptyUser()
+        request.email = "foo@example.com"
+        request.customerId = "cust_123456"
+        request.setUserIdentity("bar-id", identityType: MPUserIdentity.other)
+        MParticle.sharedInstance().identity.login(request, completion: nil)
     }
 
-    @IBAction func setIdentityAlias(row: AnyObject) {
+    @IBAction func startSetIdentityAlias(row: AnyObject) {
         self.promptForAlias { (alias) in
             if let alias = alias, alias.count > 0 {
-                self.showAlert(title: "Alias", message: "Alias is \(alias)")
+                self.finishSetIdentityAlias(alias: alias)
             }
         }
     }
@@ -233,7 +233,27 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
         )
     }
 
+    func finishSetIdentityAlias(alias: String) {
+        let request = MPIdentityApiRequest.withEmptyUser()
+        request.setUserIdentity(alias, identityType: MPUserIdentity.other)
+        request.onUserAlias = { (previousUser, newUser) -> Void in
+
+            //copy anything that you want from the previous to the new user
+            //this snippet would copy everything
+
+            newUser.userAttributes = previousUser.userAttributes
+
+            let products = previousUser.cart.products() ?? []
+            if (products.count > 0) {
+                newUser.cart.addAllProducts(products, shouldLogEvents: false)
+            }
+        }
+        MParticle.sharedInstance().identity.login(request, completion: nil)
+    }
+
     @IBAction func logUserOut(row: AnyObject) {
+        let request = MPIdentityApiRequest.withEmptyUser()
+        MParticle.sharedInstance().identity.logout(request, completion: nil)
     }
 
     // MARK: - Screen Events

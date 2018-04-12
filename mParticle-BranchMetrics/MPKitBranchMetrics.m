@@ -510,6 +510,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         for (MPProduct *product in set) {
             BranchUniversalObject *obj = [self branchUniversalObjectFromProduct:product];
             if (obj) {
+                obj.contentMetadata.currency = mpEvent.currency;
                 obj.contentMetadata.customMetadata[@"impression"] = impression;
                 [event.contentItems addObject:obj];
             }
