@@ -26,6 +26,8 @@ class APAppDelegate: UIResponder, UIApplicationDelegate {
         BNCLogSetDisplayLevel(.all)
 
         // Start mParticle
+        let mParticle = MParticle.sharedInstance()
+        mParticle.logLevel = .debug
         let options = MParticleOptions.init(
             key: "fe8104a87f1fdf4d928f69c7d5dcb9bd",
             secret: "x2JpLm6QXAxCMpjxRpiDHyb4-biuW7Ddl6cdwIKct1YYvNtjeSLyJRnXFDcxyPUN"
@@ -34,9 +36,7 @@ class APAppDelegate: UIResponder, UIApplicationDelegate {
         request.email = "foo@example.com"
         request.customerId = "cust_123456"
         options.identifyRequest = request
-
-        let mParticle = MParticle.sharedInstance()
-        mParticle.logLevel = .debug
+        options.environment = .production
         mParticle.start(with: options)
 
         return true

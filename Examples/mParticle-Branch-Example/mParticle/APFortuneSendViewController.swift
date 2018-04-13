@@ -39,9 +39,9 @@ class APFortuneSendViewController:
     // MARK: - View Controller Lifecycle
 
     static func instantiate() -> APFortuneSendViewController {
-        let storyboard = UIStoryboard(name: "Fortune", bundle: nil)
+        let storyboard = UIStoryboard(name: "APFortune", bundle: nil)
         let controller =
-            storyboard.instantiateViewController(withIdentifier: "FortuneSendViewController")
+            storyboard.instantiateViewController(withIdentifier: "APFortuneSendViewController")
             as! APFortuneSendViewController
         controller.transitioningDelegate = controller
         return controller

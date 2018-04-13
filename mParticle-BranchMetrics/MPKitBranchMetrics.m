@@ -35,6 +35,7 @@ void MPKitBranchMetricsLoadClass(void) {
 
 NSString *const ekBMAppKey = @"branchKey";
 NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
+NSString *const ekBMAEnableAppleSearchAds = @"enableAppleSearchAds";
 
 #pragma mark - MPKitBranchMetrics
 
@@ -73,6 +74,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 - (MPKitExecStatus*_Nonnull)setOptOut:(BOOL)optOut;
 
 @property (assign) BOOL forwardScreenViews;
+@property (assign) BOOL enableAppleSearchAds;
 @property (strong, nullable) Branch *branchInstance;
 @property (readwrite) BOOL started;
 @end
@@ -120,6 +122,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
         return [self execStatus:MPKitReturnCodeRequirementsNotMet];
     }
     self.forwardScreenViews = [configuration[ekBMAForwardScreenViews] boolValue];
+    self.enableAppleSearchAds = [configuration[ekBMAEnableAppleSearchAds] boolValue];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
 
@@ -132,6 +135,7 @@ NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
     dispatch_once(&branchMetricsPredicate, ^{
         NSString *branchKey = [self.configuration[ekBMAppKey] copy];
         self.branchInstance = [Branch getInstance:branchKey];
+        if (self.enableAppleSearchAds) [self.branchInstance delayInitToCheckForSearchAds];
         [self.branchInstance initSessionWithLaunchOptions:self.launchOptions
             isReferrable:YES
             andRegisterDeepLinkHandler:^(NSDictionary *params, NSError *error) {

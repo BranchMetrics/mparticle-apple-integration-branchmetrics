@@ -21,8 +21,8 @@ class APFortuneReceivedViewController: UIViewController {
     // MARK: - View Controller Lifecycle
 
     static func instantiate() -> APFortuneReceivedViewController {
-        let storyboard = UIStoryboard(name: "Fortune", bundle: nil)
-        let controller = storyboard.instantiateViewController(withIdentifier: "FortuneReceivedViewController")
+        let storyboard = UIStoryboard(name: "APFortune", bundle: nil)
+        let controller = storyboard.instantiateViewController(withIdentifier: "APFortuneReceivedViewController")
         return controller as! APFortuneReceivedViewController
     }
 
