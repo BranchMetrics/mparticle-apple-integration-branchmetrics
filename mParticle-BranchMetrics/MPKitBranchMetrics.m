@@ -37,11 +37,41 @@ NSString *const ekBMAppKey = @"branchKey";
 NSString *const ekBMAForwardScreenViews = @"forwardScreenViews";
 NSString *const ekBMAEnableAppleSearchAds = @"enableAppleSearchAds";
 
+#pragma mark - Branch Helper - Move to Branch SDK
+
+NSArray<BNCProductCategory>* BNCProductCategoryAllCategories(void);
+NSArray<BNCProductCategory>* BNCProductCategoryAllCategories(void) {
+    return @[
+        BNCProductCategoryAnimalSupplies,
+        BNCProductCategoryApparel,
+        BNCProductCategoryArtsEntertainment,
+        BNCProductCategoryBabyToddler,
+        BNCProductCategoryBusinessIndustrial,
+        BNCProductCategoryCamerasOptics,
+        BNCProductCategoryElectronics,
+        BNCProductCategoryFoodBeverageTobacco,
+        BNCProductCategoryFurniture,
+        BNCProductCategoryHardware,
+        BNCProductCategoryHealthBeauty,
+        BNCProductCategoryHomeGarden,
+        BNCProductCategoryLuggageBags,
+        BNCProductCategoryMature,
+        BNCProductCategoryMedia,
+        BNCProductCategoryOfficeSupplies,
+        BNCProductCategoryReligious,
+        BNCProductCategorySoftware,
+        BNCProductCategorySportingGoods,
+        BNCProductCategoryToysGames,
+        BNCProductCategoryVehiclesParts,
+    ];
+}
+
 #pragma mark - MPKitBranchMetrics
 
 @interface MPKitBranchMetrics() {
     NSArray<NSString*>*_branchEventTypes;
     NSArray<NSString*>*_branchEventActions;
+    NSSet<NSString*>*_branchCategories;
 }
 
 + (nonnull NSNumber *)kitCode;
@@ -284,6 +314,15 @@ NSString *const ekBMAEnableAppleSearchAds = @"enableAppleSearchAds";
     } \
 }
 
+- (NSSet<NSString*>*) branchCategories {
+    @synchronized(self) {
+        if (!_branchCategories) {
+            _branchCategories = [NSSet setWithArray:BNCProductCategoryAllCategories()];
+        }
+    return _branchCategories;
+    }
+}
+
 - (BranchUniversalObject*) branchUniversalObjectFromDictionary:(NSMutableDictionary*)dictionary {
     NSInteger startCount = dictionary.count;
     BranchUniversalObject *object = [[BranchUniversalObject alloc] init];
@@ -292,7 +331,14 @@ NSString *const ekBMAEnableAppleSearchAds = @"enableAppleSearchAds";
     addStringField(object.title, Name);
     addStringField(object.contentMetadata.productBrand, Brand);
     addStringField(object.contentMetadata.productVariant, Variant);
-    addStringField(object.contentMetadata.productCategory, Category);
+    NSString *category = dictionary[@"Category"];
+    if ([category isKindOfClass:NSString.class] && category.length) {
+        if ([self.branchCategories containsObject:category])
+            object.contentMetadata.productCategory = category;
+        else
+            object.contentMetadata.customMetadata[@"product_category"] = category;
+        dictionary[@"Category"] = nil;
+    }
     addDecimalField(object.contentMetadata.price, Item Price);
     addDoubleField(object.contentMetadata.quantity, Quantity);
 
@@ -447,7 +493,12 @@ NSString *const ekBMAEnableAppleSearchAds = @"enableAppleSearchAds";
 - (BranchUniversalObject*) branchUniversalObjectFromProduct:(MPProduct*)product {
     BranchUniversalObject *buo = [BranchUniversalObject new];
     buo.contentMetadata.productBrand = product.brand;
-    buo.contentMetadata.productCategory = product.category;
+    if (product.category.length) {
+        if ([self.branchCategories containsObject:product.category])
+            buo.contentMetadata.productCategory = product.category;
+        else
+            buo.contentMetadata.customMetadata[@"product_category"] = product.category;
+    }
     buo.contentMetadata.customMetadata[@"coupon"] = product.couponCode;
     buo.contentMetadata.productName = product.name;
     buo.contentMetadata.price = [self decimal:product.price];

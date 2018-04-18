@@ -101,13 +101,20 @@ class APFortuneViewController: UIViewController {
         }
 
         if let buo = notification.userInfo?[BranchUniversalObjectKey] as? BranchUniversalObject {
-            let messageViewController = APFortuneReceivedViewController.instantiate()
-            messageViewController.name = buo.contentMetadata.customMetadata["name"] as? String
-            messageViewController.message = buo.contentMetadata.customMetadata["message"] as? String
-            self.present(messageViewController, animated: true, completion: nil)
-            APAppData.shared.linksOpened += 1
+            self.showFortune(
+                name: buo.contentMetadata.customMetadata["name"] as? String,
+                message: buo.contentMetadata.customMetadata["message"] as? String
+            )
             return
         }
+    }
+
+    func showFortune(name: String?, message: String?) {
+        let messageViewController = APFortuneReceivedViewController.instantiate()
+        messageViewController.name = name
+        messageViewController.message = message
+        self.present(messageViewController, animated: true, completion: nil)
+        APAppData.shared.linksOpened += 1
     }
 
     // Mark: - Make the Branch Link

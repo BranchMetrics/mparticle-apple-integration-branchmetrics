@@ -15,6 +15,7 @@ import Branch
 class APAppDelegate: UIResponder, UIApplicationDelegate {
 
     @IBOutlet var window: UIWindow?
+    var fortuneViewController: APFortuneViewController?
 
     func application(_ application: UIApplication,
             didFinishLaunchingWithOptions launchOptions:[UIApplicationLaunchOptionsKey: Any]?
@@ -37,8 +38,25 @@ class APAppDelegate: UIResponder, UIApplicationDelegate {
         request.customerId = "cust_123456"
         options.identifyRequest = request
         options.environment = .production
+        options.onAttributionComplete = { (attributionResult: MPAttributionResult?, error: Error?) -> Void in
+                self.attribution(result: attributionResult, error: error)
+            }
         mParticle.start(with: options)
 
         return true
+    }
+
+    func attribution(result: MPAttributionResult?, error: Error?) {
+        if  let error = error {
+            self.window?.rootViewController?.showAlert(title: "Attribution Error", message: error.localizedDescription)
+            return
+        }
+        if  let result = result,
+            let hasLinkData = result.linkInfo[BRANCH_INIT_KEY_CLICKED_BRANCH_LINK] as? Bool,
+            hasLinkData,
+            let name = result.linkInfo["name"] as! String?,
+            let message = result.linkInfo["message"] as! String? {
+            self.fortuneViewController?.showFortune(name: name, message: message)
+        }
     }
 }
