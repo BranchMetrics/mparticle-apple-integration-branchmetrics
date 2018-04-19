@@ -24,12 +24,17 @@ class APFortuneViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        /*
+        // NSNotifications can be used for opening links / attribution too.
+        // This is commented out now so that mParticle.onAttributionComplete can be demonstrated.
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(branchDidStartSession(notification:)),
             name: NSNotification.Name.BranchDidStartSession,
             object: nil
         )
+        */
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appStatsDidUpdate(notification:)),
@@ -37,6 +42,7 @@ class APFortuneViewController: UIViewController {
             object: nil
         )
         updateStatsLabel()
+        APAppDelegate.shared?.fortuneViewController = self
     }
 
     deinit {
@@ -84,6 +90,7 @@ class APFortuneViewController: UIViewController {
         updateStatsLabel()
     }
 
+    // This method is called if NSNotifications are used for opening links / attribution.
     @objc func branchDidStartSession(notification: Notification) {
         if let error = notification.userInfo?[BranchErrorKey] as? Error {
             if let url = notification.userInfo?[BranchURLKey] as? URL {

@@ -80,7 +80,7 @@ NSArray<BNCProductCategory>* BNCProductCategoryAllCategories(void) {
 
 // Version 6 Start:
 - (instancetype _Nonnull)initWithConfiguration:(nonnull NSDictionary *)configuration
-                             startImmediately:(BOOL)startImmediately;
+                              startImmediately:(BOOL)startImmediately;
 
 // Version 7 Start:
 - (MPKitExecStatus*_Nonnull)didFinishLaunchingWithConfiguration:(nonnull NSDictionary *)configuration;
@@ -100,7 +100,7 @@ NSArray<BNCProductCategory>* BNCProductCategoryAllCategories(void) {
 - (MPKitExecStatus*_Nonnull)receivedUserNotification:(nonnull NSDictionary *)userInfo;
 - (MPKitExecStatus*_Nonnull)logCommerceEvent:(nonnull MPCommerceEvent *)commerceEvent;
 - (MPKitExecStatus*_Nonnull)logEvent:(nonnull MPEvent *)event;
-- (MPKitExecStatus*_Nonnull)setKitAttribute:(nonnull NSString *)key value:(nullable id)value;
+- (MPKitExecStatus*_Nonnull)setKitAttribute:(nonnull NSString *)key value:(nullable id)value; // EBS
 - (MPKitExecStatus*_Nonnull)setOptOut:(BOOL)optOut;
 
 @property (assign) BOOL forwardScreenViews;
@@ -198,19 +198,32 @@ NSArray<BNCProductCategory>* BNCProductCategoryAllCategories(void) {
     });
 }
 
+- (void)deinit {
+    BNCLogMethodName(); // EBS
+}
+
 - (MPKitExecStatus*_Nonnull)setOptOut:(BOOL)optOut {
     [Branch setTrackingDisabled:optOut];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
 
 - (MPKitExecStatus*_Nonnull)setKitAttribute:(nonnull NSString *)key value:(nullable id)value {
-    [self.kitApi logError:@"Unrecognized key attibute '%@'.", key];
+    [self.kitApi logError:@"Unrecognized key attibute '%@'.", key]; //  EBS -- Probably don't need this.
     return [self execStatus:MPKitReturnCodeUnavailable];
 }
 
 - (MPKitExecStatus*_Nonnull)continueUserActivity:(nonnull NSUserActivity *)userActivity
     restorationHandler:(void(^ _Nonnull)(NSArray * _Nullable restorableObjects))restorationHandler {
     [self.branchInstance continueUserActivity:userActivity];
+    return [self execStatus:MPKitReturnCodeSuccess];
+}
+
+- (MPKitExecStatus *)setUserIdentity:(NSString *)identityString
+                        identityType:(MPUserIdentity)identityType {
+    if (identityType != MPUserIdentityCustomerId || identityString.length == 0) {
+        return [self execStatus:MPKitReturnCodeRequirementsNotMet];
+    }
+    [self.branchInstance setIdentity:identityString];
     return [self execStatus:MPKitReturnCodeSuccess];
 }
 
@@ -273,15 +286,6 @@ NSArray<BNCProductCategory>* BNCProductCategoryAllCategories(void) {
 
 #pragma clang diagnostic pop
 #endif
-
-- (MPKitExecStatus *)setUserIdentity:(NSString *)identityString
-                        identityType:(MPUserIdentity)identityType {
-    if (identityType != MPUserIdentityCustomerId || identityString.length == 0) {
-        return [self execStatus:MPKitReturnCodeRequirementsNotMet];
-    }
-    [self.branchInstance setIdentity:identityString];
-    return [self execStatus:MPKitReturnCodeSuccess];
-}
 
 #pragma mark - Event Transformation
 
@@ -596,8 +600,10 @@ NSArray<BNCProductCategory>* BNCProductCategoryAllCategories(void) {
     event.revenue = [self decimal:mpEvent.transactionAttributes.revenue];
     event.transactionID = mpEvent.transactionAttributes.transactionId;
     NSInteger checkoutStep = mpEvent.checkoutStep;
-    if (checkoutStep >= 0 && checkoutStep < (NSInteger) 0x7fffffff)
-        event.customData[@"checkout_step"] = [NSString stringWithFormat:@"%ld", mpEvent.checkoutStep];
+    if (checkoutStep >= 0 && checkoutStep < (NSInteger) 0x7fffffff) {
+        event.customData[@"checkout_step"] =
+            [NSString stringWithFormat:@"%ld", (long) mpEvent.checkoutStep];
+    }
     event.customData[@"non_interactive"] = mpEvent.nonInteractive ? @"true" : @"false";
     return event;
 }

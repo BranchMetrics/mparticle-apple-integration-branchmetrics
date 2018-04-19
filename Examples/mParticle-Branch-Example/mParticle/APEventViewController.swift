@@ -42,6 +42,9 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
         self.headerLabel.bounds = r
 
         self.tableData.addSection(title: "Life Cycle Events")
+        let row = self.tableData.addRow(title: "Tracking Disabled", style: .toggleSwitch, selector: #selector(enableTracking(toggle:)))
+        row.integerValue = MParticle.sharedInstance().optOut ? 1 : 0
+
         self.tableData.addRow(title: "Set User Identity", style: .plain, selector:#selector(setIdentity(row:)))
         self.tableData.addRow(title: "Set User Alias", style: .plain, selector:#selector(startSetIdentityAlias(row:)))
         self.tableData.addRow(title: "Log User Out", style: .plain, selector:#selector(logUserOut(row:)))
@@ -145,8 +148,8 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
         } else
         if (row.style == .toggleSwitch) {
             let sw = UISwitch.init()
-            sw.isOn = row.integerValue != nil ? row.integerValue != 0 : false
-            sw.onTintColor = .green
+            sw.isOn = row.integerValue == nil ? false : row.integerValue != 0
+            sw.onTintColor = .red
             sw.addTarget(self, action:row.selector!, for:.valueChanged)
             cell.accessoryView = sw
             cell.selectionStyle = .none;
@@ -206,6 +209,17 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
 
     // MARK: - User Events
 
+    @IBAction func enableTracking(toggle: UISwitch?) {
+        if  let toggle = toggle,
+            let cell = toggle.superview as! UITableViewCell?,
+            let row = self.tableData.rowFor(tableView: self.tableView, cell: cell) {
+            let val = toggle.isOn as Bool
+            MParticle.sharedInstance().optOut = val
+            row.integerValue = val ? 1 : 0
+            self.tableData.update(tableView:self.tableView, row:row)
+        }
+    }
+
     @IBAction func setIdentity(row: AnyObject) {
         let request = MPIdentityApiRequest.withEmptyUser()
         request.email = "foo@example.com"
@@ -252,8 +266,10 @@ class APEventViewController: UIViewController, UITableViewDelegate, UITableViewD
     }
 
     @IBAction func logUserOut(row: AnyObject) {
-        let request = MPIdentityApiRequest.withEmptyUser()
-        MParticle.sharedInstance().identity.logout(request, completion: nil)
+        MParticle.sharedInstance().identity.logout { (result, error) in
+            NSLog("Log out") // EBS
+        }
+        // MParticle.sharedInstance().logout()
     }
 
     // MARK: - Screen Events

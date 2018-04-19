@@ -112,4 +112,18 @@ class  APTableData  {
         }
         return nil
     }
+
+    func update(tableView: UITableView, row: APTableRow) {
+        if let indexPath = self.indexPath(row: row) {
+            tableView.reloadRows(at: [indexPath], with: .none)
+        }
+    }
+
+    func rowFor(tableView: UITableView, cell: UITableViewCell) -> APTableRow? {
+        if let indexPath = tableView.indexPath(for: cell) {
+            let row = self.row(indexPath: indexPath)
+            return row
+        }
+        return nil
+    }
 }

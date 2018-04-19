@@ -79,7 +79,12 @@ class APKeyboardEditor: UIView, UITextFieldDelegate {
         self.dummyTextField?.inputAccessoryView = nil
 
         self.textField.endEditing(true)
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to:nil, from:nil, for:nil)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to:nil,
+            from:nil,
+            for:nil
+        )
 
         self.completionBlock?(self.textField.text)
         self.completionBlock = nil
@@ -103,6 +108,11 @@ class APKeyboardEditor: UIView, UITextFieldDelegate {
     func dismissKeyboard() {
         self.textField.endEditing(true)
         self.dummyTextField?.endEditing(true)
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to:nil, from:nil, for:nil)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to:nil,
+            from:nil,
+            for:nil
+        )
     }
 }
