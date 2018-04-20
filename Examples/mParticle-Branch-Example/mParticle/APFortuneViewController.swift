@@ -24,17 +24,6 @@ class APFortuneViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        /*
-        // NSNotifications can be used for opening links / attribution too.
-        // This is commented out now so that mParticle.onAttributionComplete can be demonstrated.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(branchDidStartSession(notification:)),
-            name: NSNotification.Name.BranchDidStartSession,
-            object: nil
-        )
-        */
-
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appStatsDidUpdate(notification:)),
@@ -90,32 +79,6 @@ class APFortuneViewController: UIViewController {
         updateStatsLabel()
     }
 
-    // This method is called if NSNotifications are used for opening links / attribution.
-    @objc func branchDidStartSession(notification: Notification) {
-        if let error = notification.userInfo?[BranchErrorKey] as? Error {
-            if let url = notification.userInfo?[BranchURLKey] as? URL {
-                self.showAlert(
-                    title: "Couldn't Open URL",
-                    message: "\(url.absoluteString)\n\n\(error.localizedDescription)"
-                )
-            } else {
-                self.showAlert(
-                    title: "Error Starting Branch Session",
-                    message: error.localizedDescription
-                )
-            }
-            return
-        }
-
-        if let buo = notification.userInfo?[BranchUniversalObjectKey] as? BranchUniversalObject {
-            self.showFortune(
-                name: buo.contentMetadata.customMetadata["name"] as? String,
-                message: buo.contentMetadata.customMetadata["message"] as? String
-            )
-            return
-        }
-    }
-
     func showFortune(name: String?, message: String?) {
         let messageViewController = APFortuneReceivedViewController.instantiate()
         messageViewController.name = name
@@ -147,10 +110,9 @@ class APFortuneViewController: UIViewController {
                 APAppData.shared.linksCreated += 1
                 let date: Date = self.conjuringStartDate! + 1.75
                 DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + date.timeIntervalSinceNow) {
-                    // DispatchTime.init(date: date)) {
-                    self.stopMysticConjuring()
-                    self.revealMysticConjuring(message: message, url: url)
-                }
+                        self.stopMysticConjuring()
+                        self.revealMysticConjuring(message: message, url: url)
+                    }
                 return
             }
             self.stopMysticConjuring()
@@ -164,7 +126,9 @@ class APFortuneViewController: UIViewController {
 
     func updateStatsLabel() {
         statsLabel.text =
-            "\(APAppData.shared.appOpens)\n\(APAppData.shared.linksOpened)\n\(APAppData.shared.linksCreated)"
+            "\(APAppData.shared.appOpens)\n" +
+            "\(APAppData.shared.linksOpened)\n" +
+            "\(APAppData.shared.linksCreated)"
     }
 
     func startMysticConjuring() {

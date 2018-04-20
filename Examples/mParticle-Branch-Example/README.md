@@ -22,4 +22,12 @@ The other tab in the app tests the mParticle / Branch integration. In the app yo
 
 ## Building & Running the Code
 
-Open the project wrokspace in Xcode and choose "Product > Run" from the main menu in Xcode.
+To build the code, install the Cocopods from the command line:
+```
+cd mParticle-Branch-Example
+pod install 
+pod update
+```
+
+Open the project wrokspace `mParticle.xcworkspace` in Xcode and choose "Product > Run" from the main menu.
+The project will build and run.
