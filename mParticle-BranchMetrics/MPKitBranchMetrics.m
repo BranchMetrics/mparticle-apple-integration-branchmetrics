@@ -422,7 +422,9 @@ static BOOL _appleSearchAdsDebugMode;
         eventName = BranchStandardEventViewItem;
     } else
     if (mpEvent.messageType == MPMessageTypeEvent) {
-        eventName = [self branchEventNameFromEventType:mpEvent.type];
+        if (!eventName) eventName = [self branchEventNameFromEventType:mpEvent.type];
+        if (!eventName && [mpEvent.name isEqualToString:@"Purchase Event"])
+            eventName = BranchStandardEventPurchase;
     } else {
         int i = 0;
         for (NSString *action in actionNames) {
